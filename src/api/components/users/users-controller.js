@@ -10,7 +10,17 @@ const { errorResponder, errorTypes } = require('../../../core/errors');
  */
 async function getUsers(request, response, next) {
   try {
-    const users = await usersService.getUsers();
+    const page_number = parseInt(request.query.page_number) || 1;
+    const page_size = parseInt(request.query.page_size) || 10;
+    const sort = request.query.sort || 'email:asc';
+    const search = request.query.search || '';
+
+    const users = await usersService.getUsers(
+      page_number,
+      page_size,
+      sort,
+      search
+    );
     return response.status(200).json(users);
   } catch (error) {
     return next(error);

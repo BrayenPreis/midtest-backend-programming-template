@@ -2,6 +2,9 @@ const authenticationRepository = require('./authentication-repository');
 const { generateToken } = require('../../../utils/session-token');
 const { passwordMatched } = require('../../../utils/password');
 
+// menambahkan objek untuk melacak percobaan login
+const loginAttempts = {};
+
 /**
  * Check username and password for login.
  * @param {string} email - Email
@@ -11,17 +14,26 @@ const { passwordMatched } = require('../../../utils/password');
 async function checkLoginCredentials(email, password) {
   const user = await authenticationRepository.getUserByEmail(email);
 
-  // We define default user password here as '<RANDOM_PASSWORD_FILTER>'
-  // to handle the case when the user login is invalid. We still want to
-  // check the password anyway, so that it prevents the attacker in
-  // guessing login credentials by looking at the processing time.
-  const userPassword = user ? user.password : '<RANDOM_PASSWORD_FILLER>';
-  const passwordChecked = await passwordMatched(password, userPassword);
+  // Periksa apakah ada percobaan login sebelumnya untuk email ini
+  const attemptInfo = loginAttempts[email] || { count: 0, lastAttempt: 0 };
 
-  // Because we always check the password (see above comment), we define the
-  // login attempt as successful when the `user` is found (by email) and
-  // the password matches.
-  if (user && passwordChecked) {
+  // Reset counter saat sudah melewati batas waktu
+  if (
+    attemptInfo.lastAttempt > 0 &&
+    Date.now() - attemptInfo.lastAttempt > 30 * 60 * 1000
+  ) {
+    attemptInfo.count = 0;
+  }
+
+  // menambahkan informasi tentang percobaan login saat ini
+  attemptInfo.lastAttempt = Date.now();
+  attemptInfo.count++;
+  loginAttempts[email] = attemptInfo;
+
+  // Karena selalu memeriksa password, definisikan percobaan login sebagai berhasil
+  if (user && (await passwordMatched(password, user.password))) {
+    // Reset counter jika login berhasil
+    delete loginAttempts[email];
     return {
       email: user.email,
       name: user.name,

@@ -19,9 +19,22 @@ async function login(request, response, next) {
     );
 
     if (!loginSuccess) {
+      // Mengambil informasi percobaan login dari authentication service
+      const loginAttemptInfo =
+        authenticationServices.getLoginAttemptInfo(email);
+
+      // Kalau terdapat informasi percobaan login dan telah melebihi batas percobaan login
+      if (loginAttemptInfo && loginAttemptInfo.count >= 5) {
+        throw errorResponder(
+          errorTypes.TOO_MANY_ATTEMPTS,
+          'Terlalu banyak percobaan yang salah. silahkan dicoba beberapa saat lagi.'
+        );
+      }
+
+      // Jika tidak, tanggapi dengan pesan default
       throw errorResponder(
         errorTypes.INVALID_CREDENTIALS,
-        'Wrong email or password'
+        'email atau password salah'
       );
     }
 
